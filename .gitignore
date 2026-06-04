@@ -4,4 +4,3 @@ artifacts/
 TestResults/
 *.user
 .DS_Store
-.reinit-git-backup/

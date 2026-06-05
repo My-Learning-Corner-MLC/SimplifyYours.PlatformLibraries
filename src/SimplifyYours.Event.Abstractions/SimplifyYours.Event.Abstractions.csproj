@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <PackageId>SimplifyYours.Event.Abstractions</PackageId>
+    <Authors>Simplify Yours</Authors>
+    <Description>Shared event envelope, outbox, inbox, and handler abstractions for Simplify Yours services.</Description>
+  </PropertyGroup>
+
+</Project>

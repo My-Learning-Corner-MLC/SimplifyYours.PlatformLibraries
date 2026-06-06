@@ -106,12 +106,6 @@ dotnet restore SimplifyYours.Event.PlatformLibraries.sln
 dotnet build SimplifyYours.Event.PlatformLibraries.sln --configuration Release --no-restore
 ```
 
-### Test
-
-```bash
-dotnet test SimplifyYours.Event.PlatformLibraries.sln --configuration Release --no-build
-```
-
 ### Pack
 
 ```bash
@@ -122,7 +116,7 @@ dotnet pack SimplifyYours.Event.PlatformLibraries.sln --configuration Release --
 
 Packages publish to GitHub Packages.
 
-The package workflow runs restore, build, test, and pack validation on pull requests and pushes to `main`. It publishes packages when:
+The package workflow runs restore, build, and pack validation on pull requests and pushes to `main`. It publishes packages when:
 
 - A tag matching `events-v*` is pushed.
 - The workflow is manually dispatched with `packageVersion`.

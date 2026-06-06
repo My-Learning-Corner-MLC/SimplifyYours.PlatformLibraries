@@ -35,14 +35,6 @@ public sealed class EventOutboxPublisherBackgroundService(
         }
     }
 
-    public async Task PublishBatchAsync(CancellationToken cancellationToken)
-    {
-        var publisherOptions = options.Value;
-        using var producer = producerFactory.Create(publisherOptions);
-
-        await PublishBatchAsync(producer, publisherOptions, cancellationToken);
-    }
-
     private async Task PublishBatchAsync(
         IKafkaEventProducer producer,
         EventPublisherOptions publisherOptions,

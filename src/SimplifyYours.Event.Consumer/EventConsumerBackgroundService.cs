@@ -72,16 +72,6 @@ public sealed class EventConsumerBackgroundService(
         consumer.Close();
     }
 
-    public async Task<bool> HandleAsync(
-        ConsumedEventMessage message,
-        CancellationToken cancellationToken)
-    {
-        var consumerOptions = options.Value;
-        using var deadLetterProducer = deadLetterProducerFactory.Create(consumerOptions);
-
-        return await HandleAsync(message, consumerOptions, deadLetterProducer, cancellationToken);
-    }
-
     private async Task<bool> HandleAsync(
         ConsumedEventMessage message,
         EventConsumerOptions consumerOptions,

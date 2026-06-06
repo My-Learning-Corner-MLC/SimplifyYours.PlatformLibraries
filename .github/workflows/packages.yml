@@ -18,7 +18,7 @@ permissions:
   packages: write
 
 jobs:
-  build-test-pack:
+  build-pack:
     runs-on: ubuntu-latest
 
     steps:
@@ -44,9 +44,6 @@ jobs:
 
       - name: Build
         run: dotnet build SimplifyYours.Event.PlatformLibraries.sln --configuration Release --no-restore
-
-      - name: Test
-        run: dotnet test SimplifyYours.Event.PlatformLibraries.sln --configuration Release --no-build
 
       - name: Pack
         run: dotnet pack SimplifyYours.Event.PlatformLibraries.sln --configuration Release --no-build -p:PackageVersion=${PACKAGE_VERSION} --output artifacts

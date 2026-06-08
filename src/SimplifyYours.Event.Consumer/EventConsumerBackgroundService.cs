@@ -32,7 +32,13 @@ public sealed class EventConsumerBackgroundService(
         using var consumer = consumerFactory.Create(consumerOptions);
         using var deadLetterProducer = deadLetterProducerFactory.Create(consumerOptions);
 
-        consumer.Subscribe(consumerOptions.Subscriptions.Select(subscription => subscription.Topic).Distinct());
+        var topics = consumerOptions.Subscriptions.Select(subscription => subscription.Topic).Distinct().ToArray();
+        consumer.Subscribe(topics);
+        logger.LogInformation(
+            "Event consumer started. GroupId: {GroupId}. Topics: {Topics}. SubscriptionCount: {SubscriptionCount}.",
+            consumerOptions.GroupId,
+            string.Join(",", topics),
+            consumerOptions.Subscriptions.Count);
         await Task.Yield();
 
         while (!stoppingToken.IsCancellationRequested)
@@ -40,6 +46,10 @@ public sealed class EventConsumerBackgroundService(
             try
             {
                 var message = consumer.Consume(stoppingToken);
+                logger.LogDebug(
+                    "Kafka event message consumed. Topic: {Topic}. Key: {Key}.",
+                    message.Topic,
+                    message.Key);
                 var handled = await HandleAsync(
                     message,
                     consumerOptions,
@@ -49,6 +59,10 @@ public sealed class EventConsumerBackgroundService(
                 if (handled)
                 {
                     consumer.Commit();
+                    logger.LogDebug(
+                        "Kafka event message committed. Topic: {Topic}. Key: {Key}.",
+                        message.Topic,
+                        message.Key);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -102,16 +116,31 @@ public sealed class EventConsumerBackgroundService(
 
         if (inboxRecord?.Status == EventInboxRecordStatus.Processed)
         {
+            logger.LogInformation(
+                "Skipping already processed event. EventId: {EventId}. EventType: {EventType}. Topic: {Topic}.",
+                envelope.EventId,
+                envelope.EventType,
+                message.Topic);
             return true;
         }
 
         if (inboxRecord?.Status == EventInboxRecordStatus.Failed
             && inboxRecord.HandleAttempts >= Math.Max(1, consumerOptions.MaxHandleAttempts))
         {
+            logger.LogWarning(
+                "Skipping terminally failed event. EventId: {EventId}. EventType: {EventType}. Attempts: {Attempts}.",
+                envelope.EventId,
+                envelope.EventType,
+                inboxRecord.HandleAttempts);
             return true;
         }
 
         await inboxStore.MarkProcessingAsync(envelope, DateTimeOffset.UtcNow, cancellationToken);
+        logger.LogInformation(
+            "Event handling started. EventId: {EventId}. EventType: {EventType}. Topic: {Topic}.",
+            envelope.EventId,
+            envelope.EventType,
+            message.Topic);
 
         try
         {
@@ -122,6 +151,12 @@ public sealed class EventConsumerBackgroundService(
                 envelope.EventType,
                 DateTimeOffset.UtcNow,
                 cancellationToken);
+
+            logger.LogInformation(
+                "Event handled successfully. EventId: {EventId}. EventType: {EventType}. Topic: {Topic}.",
+                envelope.EventId,
+                envelope.EventType,
+                message.Topic);
 
             return true;
         }
@@ -147,16 +182,20 @@ public sealed class EventConsumerBackgroundService(
 
                 logger.LogError(
                     exception,
-                    "Event {EventId} failed permanently and was published to the dead-letter topic.",
-                    envelope.EventId);
+                    "Event failed permanently and was published to the dead-letter topic. EventId: {EventId}. EventType: {EventType}. AttemptsAfterFailure: {AttemptsAfterFailure}.",
+                    envelope.EventId,
+                    envelope.EventType,
+                    attemptsAfterFailure);
 
                 return true;
             }
 
             logger.LogWarning(
                 exception,
-                "Event {EventId} handling failed and will be retried.",
-                envelope.EventId);
+                "Event handling failed and will be retried. EventId: {EventId}. EventType: {EventType}. AttemptsAfterFailure: {AttemptsAfterFailure}.",
+                envelope.EventId,
+                envelope.EventType,
+                attemptsAfterFailure);
 
             return false;
         }

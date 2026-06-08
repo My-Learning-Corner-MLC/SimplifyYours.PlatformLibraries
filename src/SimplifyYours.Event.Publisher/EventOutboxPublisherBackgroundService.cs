@@ -28,6 +28,12 @@ public sealed class EventOutboxPublisherBackgroundService(
 
         using var producer = producerFactory.Create(publisherOptions);
 
+        logger.LogInformation(
+            "Event outbox publisher started. DefaultTopic: {DefaultTopic}. BatchSize: {BatchSize}. PollingIntervalSeconds: {PollingIntervalSeconds}.",
+            publisherOptions.DefaultTopic,
+            Math.Max(1, publisherOptions.BatchSize),
+            GetPollingInterval(publisherOptions).TotalSeconds);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             await PublishBatchAsync(producer, publisherOptions, stoppingToken);
@@ -47,6 +53,14 @@ public sealed class EventOutboxPublisherBackgroundService(
         var maxAttempts = Math.Max(1, publisherOptions.MaxPublishAttempts);
         var records = await outboxStore.GetPendingAsync(batchSize, maxAttempts, cancellationToken);
 
+        if (records.Count > 0)
+        {
+            logger.LogInformation(
+                "Event outbox batch loaded. MessageCount: {MessageCount}. BatchSize: {BatchSize}.",
+                records.Count,
+                batchSize);
+        }
+
         foreach (var record in records)
         {
             try
@@ -62,6 +76,13 @@ public sealed class EventOutboxPublisherBackgroundService(
                     cancellationToken);
 
                 await outboxStore.MarkPublishedAsync(record.Id, DateTimeOffset.UtcNow, cancellationToken);
+
+                logger.LogInformation(
+                    "Outbox message published. MessageId: {MessageId}. EventType: {EventType}. CorrelationId: {CorrelationId}. Topic: {Topic}.",
+                    record.Id,
+                    record.EventType,
+                    record.CorrelationId,
+                    topic);
             }
             catch (Exception exception)
             {
@@ -76,8 +97,11 @@ public sealed class EventOutboxPublisherBackgroundService(
 
                 logger.LogError(
                     exception,
-                    "Failed to publish outbox message {MessageId}. Terminal: {Terminal}.",
+                    "Failed to publish outbox message {MessageId}. EventType: {EventType}. CorrelationId: {CorrelationId}. AttemptsAfterFailure: {AttemptsAfterFailure}. Terminal: {Terminal}.",
                     record.Id,
+                    record.EventType,
+                    record.CorrelationId,
+                    attemptsAfterFailure,
                     terminal);
             }
         }
